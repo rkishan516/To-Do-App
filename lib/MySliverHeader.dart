@@ -146,7 +146,7 @@ class MySliverAppBar extends SliverPersistentHeaderDelegate {
                   ),
                   radius: (30 - shrinkOffset > 0) ? 30 - shrinkOffset : 0,
                 ),
-                onTap: () {
+                onTapDown: () {
                   allData.edt = false;
                   GetTodo(allData);
                 },
