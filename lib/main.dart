@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:to_do/notifier/todo_list_notifier.dart';
 import 'MySliverHeader.dart';
-import 'model.dart';
 
-void main() => runApp(MyApp());
+void main() => runApp(
+      ProviderScope(
+        child: MyApp(),
+      ),
+    );
 
 class MyApp extends StatelessWidget {
   @override
@@ -15,36 +18,23 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.red,
       ),
-      home: ChangeNotifierProvider(
-          builder: (BuildContext context) => AllData.instance,
-          child: MyHomePage(title: 'TO-DO APP')),
+      home: MyHomePage(title: 'TO-DO APP'),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  MyHomePage({Key key, this.title}) : super(key: key);
+class MyHomePage extends ConsumerStatefulWidget {
+  MyHomePage({super.key, required this.title});
   final String title;
 
   @override
   _MyHomePageState createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  @override
-  void initState() {
-    AllData allData = AllData.instance;
-    allData.createAndOpenDBAndGetData();
-    super.initState();
-    Future.delayed(Duration(seconds: 3)).then((onValue) {
-      allData.StartingDataFetch(onValue);
-    });
-  }
-
+class _MyHomePageState extends ConsumerState<MyHomePage> {
   @override
   Widget build(BuildContext context) {
-    AllData allData = Provider.of<AllData>(context);
-    SystemChrome.setEnabledSystemUIOverlays([]);
+    final allData = ref.watch(allDataNotifierProvider);
     return Material(
       child: CustomScrollView(
         slivers: <Widget>[
@@ -63,28 +53,40 @@ class _MyHomePageState extends State<MyHomePage> {
                   child: ListTile(
                     contentPadding: EdgeInsets.all(20.0),
                     leading: IconButton(
-                        icon: const Icon(Icons.strikethrough_s),
-                        color: Colors.blue,
-                        onPressed: () async {
-                          allData.indx = index;
-                          await allData.makeStrikeThoroughText();
-                        }),
+                      icon: const Icon(Icons.strikethrough_s),
+                      color: Colors.blue,
+                      onPressed: () {
+                        ref
+                            .watch(allDataNotifierProvider.notifier)
+                            .makeStrikeThoroughText(index);
+                      },
+                    ),
                     trailing: IconButton(
-                        icon: const Icon(Icons.delete),
-                        color: Colors.red[300],
-                        onPressed: () async {
-                          allData.indx = index;
-                          await allData.deleteValue();
-                        }),
+                      icon: const Icon(Icons.delete),
+                      color: Colors.red[300],
+                      onPressed: () {
+                        ref
+                            .watch(allDataNotifierProvider.notifier)
+                            .deleteValue(index);
+                      },
+                    ),
                     title: Text(
-                      '${allData.items[index]}',
-                      style: TextStyle(decoration: allData.txtDList[index]),
+                      '${allData.items[index].item}',
+                      style: TextStyle(
+                        decoration: allData.items[index].done
+                            ? TextDecoration.lineThrough
+                            : TextDecoration.none,
+                      ),
                     ),
                     onTap: () {
-                      allData.edt = true;
-                      allData.indx = index;
-                      allData.controller.text = allData.items[index];
-                      GetTodo(allData);
+                      ref
+                          .read(allDataNotifierProvider.notifier)
+                          .updateEditState(true);
+                      ref
+                          .read(allDataNotifierProvider.notifier)
+                          .controller
+                          .text = allData.items[index].item;
+                      getTodo();
                     },
                   ),
                 );
@@ -97,7 +99,8 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  GetTodo(AllData allData) async {
+  getTodo() async {
+    final allData = ref.read(allDataNotifierProvider.notifier);
     await showDialog<String>(
         context: context,
         builder: (BuildContext context) {
@@ -117,18 +120,20 @@ class _MyHomePageState extends State<MyHomePage> {
               ],
             ),
             actions: <Widget>[
-              FlatButton(
+              OutlinedButton(
                 onPressed: () async {
-                  await allData.changeListView();
+                  await allData.changeListView(0);
                   allData.controller.text = "";
                   Navigator.pop(context);
                 },
                 child: const Text('Save'),
               ),
-              FlatButton(
+              OutlinedButton(
                 onPressed: () {
-                  if (allData.edt) {
-                    allData.edt = false;
+                  if (ref.read(allDataNotifierProvider).edit) {
+                    ref
+                        .read(allDataNotifierProvider.notifier)
+                        .updateEditState(false);
                   }
                   allData.controller.text = "";
                   Navigator.pop(context);
